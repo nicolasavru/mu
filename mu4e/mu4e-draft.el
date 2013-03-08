@@ -117,7 +117,15 @@ that, otherwise use the From address. Note, whatever was in the To:
 field before, goes to the Cc:-list (if we're doing a reply-to-all)."
   (let ((reply-to
 	   (or (plist-get origmsg :reply-to) (plist-get origmsg :from))))
-    (delete-duplicates reply-to :test #'mu4e~draft-address-cell-equal)))
+    (delete-duplicates reply-to :test #'mu4e~draft-address-cell-equal)
+    (delete-if
+     (lambda (to-cell)
+       (member-if
+	(lambda (addr)
+	  (string= (downcase addr) (downcase (cdr to-cell))))
+	mu4e-user-mail-address-list))
+     reply-to)
+    ))
 
 
 (defun mu4e~draft-create-cc-lst (origmsg reply-all)
@@ -266,9 +274,17 @@ You can append flags."
      (concat
       (mu4e~draft-header "From" (or (mu4e~draft-from-construct) ""))
       (mu4e~draft-header "Reply-To" mu4e-compose-reply-to-address)
-      (mu4e~draft-header "To" (mu4e~draft-recipients-construct :to origmsg))
-      (mu4e~draft-header "Cc" (mu4e~draft-recipients-construct :cc origmsg
-				  reply-all))
+
+      (if (> (length (mu4e~draft-create-to-lst origmsg)) 0 ) 
+	  (concat
+	    (mu4e~draft-header "To" (mu4e~draft-recipients-construct :to origmsg))
+	    (mu4e~draft-header "Cc" (mu4e~draft-recipients-construct :cc origmsg
+								     reply-all))
+	    )
+	  (mu4e~draft-header "To" (mu4e~draft-recipients-construct :cc origmsg
+								   reply-all))
+	  )
+     
       (mu4e~draft-header "Subject" subject)
       (mu4e~draft-header "References"
 	(mu4e~draft-references-construct origmsg))
